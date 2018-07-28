@@ -79,9 +79,9 @@ void main()
 
     USART_Init();
 
-		ConnectServer();
+	//	ConnectServer();
 
-		ConnectSuccess();
+	//	ConnectSuccess();
 		
     while(1) {
 
@@ -93,18 +93,6 @@ void Device_Init() {
 
     LED = 0;
     LOUND = 0;
-}
-
-void ConnectSuccess(){
-
-	 LOUND = 1;
-	 DELAY_MS(200);
-		LOUND = 0;
-	 DELAY_MS(200);
-	  LOUND = 1;
-	 DELAY_MS(200);
-	  LOUND = 0;
-
 }
 
 
@@ -218,24 +206,90 @@ char CheckData(unsigned char *CHECK_DATA) {
 }
 
 
-
 void ResponseData(unsigned char *RES_DATA) {
-
-    if(CheckData(RES_DATA) == RES_DATA[5]) {
-
-        if(RES_DATA[1]==0x03 && RES_DATA[4]==0x02) {
-            LED = 1;
+	if(CheckData(RES_DATA) == RES_DATA[5]) {
+			switch(RES_DATA[1]){
+				case 0x01:{//转弯和角度
+					if( 0x00<=RES_DATA[3]<=0x02 && 0x00<=RES_DATA[4]<=0x03){
             sendAckData(RES_DATA);
-        } else	if(RES_DATA[1]==0x03 && RES_DATA[4]==0x01) {
-            LED = 0;
+						
+					}
+					break;
+			  };
+				case 0x02:{//喇叭
+					if( RES_DATA[4]==0x02){
+						 LOUND = 1;
             sendAckData(RES_DATA);
-        } else if(RES_DATA[1]==0x02 && RES_DATA[4]==0x02) {
-            LOUND = 1;
+					}else if( RES_DATA[4]==0x01){
+						LOUND = 0;
             sendAckData(RES_DATA);
-        } else	if(RES_DATA[1]==0x02 && RES_DATA[4]==0x01) {
-            LOUND = 0;
+					}
+					break;
+			  };
+				case 0x03:{//灯
+					if( RES_DATA[4]==0x02){
+						LED = 1;
             sendAckData(RES_DATA);
-        }
+					}else if( RES_DATA[4]==0x01){
+						LED = 0;
+            sendAckData(RES_DATA);
+					}
+					break;
+			  };
+				case 0x04:{//方向和油门
+					if( 0x00<=RES_DATA[3]<=0x02 && 0x00<=RES_DATA[4]<=0x03){
+            sendAckData(RES_DATA);
+						
+					}
+					break;
+			  };
+				case 0x05:{//寻车
+					if( RES_DATA[4]==0x02){
+						sendAckData(RES_DATA);
+						LED = 1;
+						LOUND = 1;
+						DELAY_MS(200);
+						LED = 0;
+						LOUND = 0;
+						DELAY_MS(200);
+						LED = 1;
+						LOUND = 1;
+						DELAY_MS(200);
+						LED = 0;
+						LOUND = 0;
+						DELAY_MS(200);
+						LED = 1;
+						LOUND = 1;
+						DELAY_MS(200);
+						LED = 0;
+						LOUND = 0;
+						DELAY_MS(200);
+					}
+					break;
+			  };
+				case 0x06:{//引擎   TODOLED显示工作状态
+					if( RES_DATA[4]==0x02){
+						LED = 1;
+						LOUND = 1;
+						DELAY_MS(1000);
+						LED = 0;
+						LOUND = 0;
+            sendAckData(RES_DATA);
+					}else if( RES_DATA[4]==0x01){
+						LED = 1;
+						LOUND = 1;
+						DELAY_MS(1000);
+						LED = 0;
+						LOUND = 0;
+            sendAckData(RES_DATA);
+					}
+					break;
+			  };
+				
+				default:
+					break;
+				
+			}
     }
 
 }
@@ -247,8 +301,9 @@ void sendAckData(unsigned char *RES_DATA) {
     unsigned char DATA_SEND[]= { 0x7E, 0x00,     0x02,  0x00,    0x00 ,      0x00,       0x7E};
 
     DATA_SEND[1]= RES_DATA[1];
+    DATA_SEND[3]= RES_DATA[3];
     DATA_SEND[4]= RES_DATA[4];
-    DATA_SEND[5]= CheckData(RES_DATA);
+    DATA_SEND[5]= CheckData(DATA_SEND);
 
     SendData(DATA_SEND);
 
@@ -282,6 +337,17 @@ void DELAY_MS(unsigned int timeout)		//@11.0592MHz
     }
 }
 
+void ConnectSuccess(){
+
+	 LOUND = 1;
+	 DELAY_MS(200);
+		LOUND = 0;
+	 DELAY_MS(200);
+	  LOUND = 1;
+	 DELAY_MS(200);
+	  LOUND = 0;
+
+}
 
 void ConnectServer() {
 
@@ -304,13 +370,13 @@ void ConnectServer() {
     UART_TC("AT+CIPMUX=0\r\n\0");  // 设置单连接模式
     DELAY_MS(1500);
 
-    UART_TC("AT+CIPSTART=\"TCP\",\"192.168.0.104\",4001\r\n\0");	// 连接到指定TCP服务器
+    UART_TC("AT+CIPSTART=\"TCP\",\"192.168.0.103\",4001\r\n\0");	// 连接到指定TCP服务器
     DELAY_MS( 3500);
 
     UART_TC("AT+CIPMODE=1\r\n\0"); // 设置透传模式
     DELAY_MS( 1500);
 
-    UART_TC("AT+SAVETRANSLINK=1,\"192.168.0.104\",4001,\"TCP\"\r\n\0"); // 保存TCP连接到flash，实现上电透传
+    UART_TC("AT+SAVETRANSLINK=1,\"192.168.0.103\",4001,\"TCP\"\r\n\0"); // 保存TCP连接到flash，实现上电透传
     DELAY_MS(1500);
 
     UART_TC("AT+CIPSEND\r\n\0");	 // 进入透传模式
