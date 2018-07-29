@@ -10,7 +10,6 @@
 /* 如果要在文章中应用此代码,请在文章中注明使用了STC的资料及程序        */
 /*---------------------------------------------------------------------*/
 
-//本示例在Keil开发环境下请选择Intel的8058芯片型号进行编译
 //若无特别说明,工作频率一般为11.0592MHz
 
 
@@ -19,13 +18,28 @@
 #include "intrins.h"
 #include <string.h>  // 字符串处理头文件
 
-sbit LED = P3 ^ 2;  // 对应硬件连接
-sbit LOUND = P5 ^ 4;  // 对应硬件连接
+#define uint8   unsigned char  
+#define uint32    unsigned int   
+#define uint16    unsigned short int
+#define MAIN_Fosc		11059200UL	//定义主时钟
+#define T1MS		(65536-MAIN_Fosc/1000) //1MS
+
+
+sbit T0CLKO = P3^5;             //定时器0的时钟输出口
+sbit LED =    P3 ^ 2;           // 对应硬件连接
+sbit LOUND =  P5 ^ 4;           // 对应硬件连接
+sbit MOTORIN1 =  P1 ^ 6;           // 控制电机方向
+sbit MOTORIN2 =  P1 ^ 7;           // 控制电机方向
+/*注：在进行正反转切换的时候最好先刹车0.1S以上再反转，否则有可能损坏驱动器。
+在PWM为100%时，如果要切换电机方向，必须先刹车0.1S以上再给反转信号。*/
+sbit MOTORPWM =  P1 ^ 5;           // 控制电机PWM
 
 bit busy;
+bit MOTORRUNING = 1;
 
 typedef unsigned char BYTE;
 typedef unsigned int WORD;
+
 
 BYTE DATA_LENGTH = 7;
 BYTE CURRENT_LENGTH=0;
@@ -33,32 +47,48 @@ BYTE CURRENT_LENGTH=0;
 BYTE DATA_GET[]=  { 0x7E, 0x00,     0,  0,      0,      0,       0x7E};
 
 
-#define FOSC 11059200L          //系统频率
-#define BAUD 115200             //串口波特率
 
-#define S1_S0 0x40              //P_SW1.6
-#define S1_S1 0x80              //P_SW1.7
+//1843
 
+//1.0ms 0X2B32 向左45度角 3挡
+//1. ms 0X3265 向左30度角 2挡 
+//1. ms 0X3998 向左15度角 1挡
+//1.5ms 0X40CC 居中
+//1. ms 0X47FE 向右15度角 1挡
+//1. ms 0X4F31 向右30度角 2挡 
+//2.0ms 0X5665 向右45度角 3挡
+
+uint32 PWMHEIGHT = 0X40CC;
+
+
+#define FOSC 11059200L       					   //系统频率
+#define BAUD 115200            					 //串口波特率
+	
+#define S1_S0 0x40              					//P_SW1.6
+#define S1_S1 0x80              					//P_SW1.7
+	
 
 void SendString(char *s);
 void SendDatas(char *s);
 
 void SendData(char *s);
 void UART_TC (unsigned char *str);
-void UART_T (unsigned char UART_data); //定义串口发送数据变量
+void UART_T (unsigned char UART_data); 			//定义串口发送数据变量
 void UART_R();//接受数据
-void DELAY_MS(unsigned int timeout);		//@11.0592MHz   1ms
-void ConnectServer();//连接服务器
+void DELAY_MS(unsigned int timeout);				//@11.0592MHz   1ms
+void Delay200ms(void);
 void USART_Init();
 void Device_Init();
 void ResponseData(unsigned char *RES_DATA);
 char CheckData(unsigned char *CHECK_DATA);
 void sendAckData(unsigned char *RES_DATA);
-void ConnectSuccess();
+
+void Timer0Init(void);
+void Timer0(uint32 us);
 
 void main()
 {
- P0M0 = 0x00;
+		P0M0 = 0x00;
     P0M1 = 0x00;
     P1M0 = 0x00;
     P1M1 = 0x00;
@@ -74,20 +104,101 @@ void main()
     P6M1 = 0x00;
     P7M0 = 0x00;
     P7M1 = 0x00;
-
-    Device_Init();
-
-    USART_Init();
-
-	//	ConnectServer();
-
-	//	ConnectSuccess();
 		
-    while(1) {
+		MOTORIN1 = 0;
+		MOTORIN2 = 0 ;
+		MOTORPWM = 0;
+		MOTORRUNING = 1;
+		
+    Device_Init();
+    USART_Init();
+		Timer0Init();
 
-    };
+    while(1) {};
 }
 
+
+void Timer0Init(void)		//500微秒@11.0592MHz
+{
+	AUXR |= 0x80;		//定时器时钟1T模式
+	TMOD &= 0xF0;		//设置定时器模式
+	TMOD |= 0x01;		//设置定时器模式
+  TL0 = 0xCC;			//设置定时初值
+	TH0 = 0x40;			//设置定时初值
+	TF0 = 0;				//清除TF0标志
+	TR0 = 1;				//定时器0开始计时
+	ET0 = 1;        //使能定时器0中断
+  EA = 1;
+}
+
+
+void Timer0(uint32 us)	 	
+{	
+	uint32 valu;
+	valu=0xffff-us;  
+  TH0=valu>>8;   	
+  TL0=valu;
+  TR0  = 1;				//T0开始工作
+}
+
+
+
+//定时器0中断服务程序
+void tm0() interrupt 1
+{
+	static unsigned char   i=1;
+
+	switch(i)	  
+	{
+			case 1:
+			{
+				T0CLKO=1;
+				MOTORPWM =1;
+				
+				Timer0(PWMHEIGHT);
+			}  break;
+			case 2:
+			{
+			 	T0CLKO=0;     //	pwm1变低 
+				MOTORPWM = 0;
+				
+				Timer0(0x6BFF - PWMHEIGHT);
+			}  break;
+			case 3:
+			{
+				Timer0(0x6BFF);
+			}  break;
+			case 4:
+			{
+				Timer0(0x6BFF);
+			}  break;
+			case 5:
+			{
+				Timer0(0x6BFF);
+			}  break;
+			case 6:
+			{
+				Timer0(0x6BFF);
+			}  break;
+			case 7:
+			{
+				Timer0(0x6BFF);
+			}  break;
+			case 8:
+			{
+				Timer0(0x6BFF);
+			}  break;
+			case 9:
+			{
+				Timer0(0x6BFF);
+        i=0;
+			}  break;
+
+			default:break;
+	}
+	i++;
+    
+}
 
 void Device_Init() {
 
@@ -156,13 +267,11 @@ void  SendData(char *s)
 
     unsigned int i=0;
 
-
     for(i=0; i<DATA_LENGTH; i++)
     {
-				 
         SBUF=s[i];
-     while(!TI);		//检查发送中断标志位
-    TI = 0;	
+				while(!TI);		//检查发送中断标志位
+				TI = 0;	
     }
 }
 
@@ -213,6 +322,35 @@ void ResponseData(unsigned char *RES_DATA) {
 					if( 0x00<=RES_DATA[3]<=0x02 && 0x00<=RES_DATA[4]<=0x03){
             sendAckData(RES_DATA);
 						
+						//1.0ms 0X2B32 向左45度角 3挡
+						//1. ms 0X3265 向左30度角 2挡 
+						//1. ms 0X3998 向左15度角 1挡
+						//1.5ms 0X40CC 居中
+						//1. ms 0X47FE 向右15度角 1挡
+						//1. ms 0X4F31 向右30度角 2挡 
+						//2.0ms 0X5665 向右45度角 3挡
+						
+						if(RES_DATA[3] == 0x00 || RES_DATA[4] == 0x00 ){//居中
+								PWMHEIGHT = 0X40CC;
+						  }else if(RES_DATA[3] == 0x02){//左转
+							if(RES_DATA[4] == 0x01){
+								PWMHEIGHT = 0X3998;
+						  }else if(RES_DATA[4] == 0x02){
+								PWMHEIGHT = 0X3265;
+						  }else if(0x03 <= RES_DATA[4] ){
+								PWMHEIGHT = 0X2B32;
+						  }
+						}else if(RES_DATA[3] == 0x01){//右转
+							if(RES_DATA[4] == 0x01){
+								PWMHEIGHT = 0X47FE;
+						  }else if(RES_DATA[4] == 0x02){
+								PWMHEIGHT = 0X4F31;
+						  }else if(0x03 <= RES_DATA[4] ){
+								PWMHEIGHT = 0X5665;
+						  }
+						}
+						
+						
 					}
 					break;
 			  };
@@ -237,8 +375,45 @@ void ResponseData(unsigned char *RES_DATA) {
 					break;
 			  };
 				case 0x04:{//方向和油门
-					if( 0x00<=RES_DATA[3]<=0x02 && 0x00<=RES_DATA[4]<=0x03){
+					if( 0x00<=RES_DATA[3]<=0x02 && 0x00<=RES_DATA[4]<=0x03 && MOTORRUNING == 1){
             sendAckData(RES_DATA);
+						
+						
+							if(RES_DATA[3] == 0x00 || RES_DATA[4] == 0x00 ){//停止
+										MOTORIN1=0;
+										MOTORIN2=0;
+/*注：在进行正反转切换的时候最好先刹车0.1S以上再反转，否则有可能损坏驱动器。
+在PWM为100%时，如果要切换电机方向，必须先刹车0.1S以上再给反转信号。*/
+
+										MOTORRUNING = 0;
+										Delay200ms();
+										MOTORRUNING = 1;
+										
+						  }else if(RES_DATA[3] == 0x02){//前进
+												MOTORIN1=1;
+										    MOTORIN2=0;	
+												
+									if(RES_DATA[4] == 0x01){
+	
+									}else if(RES_DATA[4] == 0x02){
+									
+									}else if(0x03 <= RES_DATA[4] ){
+										
+									}
+						}else if(RES_DATA[3] == 0x01){//后退
+								MOTORIN1=0;
+								MOTORIN2=1;	
+												
+							if(RES_DATA[4] == 0x01){
+								
+						  }else if(RES_DATA[4] == 0x02){
+								
+						  }else if(0x03 <= RES_DATA[4] ){
+								
+						  }
+						}
+						
+						
 						
 					}
 					break;
@@ -337,50 +512,20 @@ void DELAY_MS(unsigned int timeout)		//@11.0592MHz
     }
 }
 
-void ConnectSuccess(){
+void Delay200ms()		//@11.0592MHz
+{
+	unsigned char i, j, k;
 
-	 LOUND = 1;
-	 DELAY_MS(200);
-		LOUND = 0;
-	 DELAY_MS(200);
-	  LOUND = 1;
-	 DELAY_MS(200);
-	  LOUND = 0;
-
-}
-
-void ConnectServer() {
-
-
-    UART_TC("+++\0"); // 退出透传模式
-    DELAY_MS( 1000);
-
-    //UART_TC("AT\r\n\0");	// AT指令测试
-    //DELAY_MS(1500);
-
-    //UART_TC("AT+CWSTARTSMART\r\n\0"); // 开始智能配网模式
-    //DELAY_MS(1000);
-//	LED = 0; // 配网指示灯亮起
-//	DELAY_MS( 30000); // 链接成功
-
-    //UART_TC("AT+CWSTOPSMART\r\n\0"); // 结束智能配网模式，释放模块资源(必须)
-//	DELAY_MS( 1000);
-    //LED = 1; // 配网指示灯熄灭
-
-    UART_TC("AT+CIPMUX=0\r\n\0");  // 设置单连接模式
-    DELAY_MS(1500);
-
-    UART_TC("AT+CIPSTART=\"TCP\",\"192.168.0.103\",4001\r\n\0");	// 连接到指定TCP服务器
-    DELAY_MS( 3500);
-
-    UART_TC("AT+CIPMODE=1\r\n\0"); // 设置透传模式
-    DELAY_MS( 1500);
-
-    UART_TC("AT+SAVETRANSLINK=1,\"192.168.0.103\",4001,\"TCP\"\r\n\0"); // 保存TCP连接到flash，实现上电透传
-    DELAY_MS(1500);
-
-    UART_TC("AT+CIPSEND\r\n\0");	 // 进入透传模式
-    DELAY_MS( 1000);
-
-    CURRENT_LENGTH=0;
+	_nop_();
+	_nop_();
+	i = 9;
+	j = 104;
+	k = 139;
+	do
+	{
+		do
+		{
+			while (--k);
+		} while (--j);
+	} while (--i);
 }

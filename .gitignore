@@ -82,3 +82,5 @@ PROJECT_PROJ.XSD
 *.XML
 bash.exe.stackdump
 .DS_Store
+code/SmartCar.c.rej
+pro/SmartCar.uvgui_TIANYUAN.bak
