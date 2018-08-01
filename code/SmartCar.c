@@ -25,14 +25,14 @@
 #define T1MS		(65536-MAIN_Fosc/1000) //1MS
 
 
-sbit T0CLKO = P3^5;             //定时器0的时钟输出口
-sbit LED =    P3 ^ 2;           // 对应硬件连接
-sbit LOUND =  P5 ^ 4;           // 对应硬件连接
+sbit Servo  = P1^4;             //舵机 定时器0的时钟输出口
+sbit LED =    P5 ^ 5;           // LED灯
+sbit LOUND =  P5 ^ 4;           // 蜂鸣器
 sbit MOTORIN1 =  P1 ^ 6;           // 控制电机方向
 sbit MOTORIN2 =  P1 ^ 7;           // 控制电机方向
 /*注：在进行正反转切换的时候最好先刹车0.1S以上再反转，否则有可能损坏驱动器。
 在PWM为100%时，如果要切换电机方向，必须先刹车0.1S以上再给反转信号。*/
-sbit MOTORPWM =  P1 ^ 5;           // 控制电机PWM
+sbit MOTORPWM =  P1 ^ 5;           // 控制电机PWM 转速
 
 bit busy;
 bit MOTORRUNING = 1;
@@ -60,6 +60,8 @@ BYTE DATA_GET[]=  { 0x7E, 0x00,     0,  0,      0,      0,       0x7E};
 
 uint32 PWMHEIGHT = 0X40CC;
 
+uint32 MOTORDUTY = 0X40CC;
+
 
 #define FOSC 11059200L       					   //系统频率
 #define BAUD 115200            					 //串口波特率
@@ -67,7 +69,7 @@ uint32 PWMHEIGHT = 0X40CC;
 #define S1_S0 0x40              					//P_SW1.6
 #define S1_S1 0x80              					//P_SW1.7
 	
-
+ 
 void SendString(char *s);
 void SendDatas(char *s);
 
@@ -85,6 +87,10 @@ void sendAckData(unsigned char *RES_DATA);
 
 void Timer0Init(void);
 void Timer0(uint32 us);
+
+void Timer2Init(void);		//@11.0592MHz  
+void Timer2(uint32 us);
+
 
 void main()
 {
@@ -104,27 +110,35 @@ void main()
     P6M1 = 0x00;
     P7M0 = 0x00;
     P7M1 = 0x00;
-		
-		MOTORIN1 = 0;
-		MOTORIN2 = 0 ;
-		MOTORPWM = 0;
-		MOTORRUNING = 1;
-		
+	
     Device_Init();
     USART_Init();
+		
 		Timer0Init();
 
-    while(1) {};
+    Timer2Init();
+
+
+	  WDT_CONTR = 0x06;       //看门狗定时器溢出时间计算公式: (12 * 32768 * PS) / FOSC (秒)
+                            //设置看门狗定时器分频数为32,溢出时间如下:
+                            //11.0592M : 1.14s
+                            //18.432M  : 0.68s
+                            //20M      : 0.63s
+    WDT_CONTR |= 0x20;      //启动看门狗
+
+    while(1) {
+			WDT_CONTR |= 0x10;  //喂狗程序
+		};
 }
 
 
-void Timer0Init(void)		//500微秒@11.0592MHz
+void Timer0Init(void)		//@11.0592MHz
 {
 	AUXR |= 0x80;		//定时器时钟1T模式
 	TMOD &= 0xF0;		//设置定时器模式
 	TMOD |= 0x01;		//设置定时器模式
-  TL0 = 0xCC;			//设置定时初值
-	TH0 = 0x40;			//设置定时初值
+  TL0 = 0x33;			//设置定时初值
+	TH0 = 0xBF;			//设置定时初值
 	TF0 = 0;				//清除TF0标志
 	TR0 = 1;				//定时器0开始计时
 	ET0 = 1;        //使能定时器0中断
@@ -144,7 +158,7 @@ void Timer0(uint32 us)
 
 
 //定时器0中断服务程序
-void tm0() interrupt 1
+void Timer0_interrupt() interrupt 1
 {
 	static unsigned char   i=1;
 
@@ -152,15 +166,13 @@ void tm0() interrupt 1
 	{
 			case 1:
 			{
-				T0CLKO=1;
-				MOTORPWM =1;
+				Servo = 1;
 				
 				Timer0(PWMHEIGHT);
 			}  break;
 			case 2:
 			{
-			 	T0CLKO=0;     //	pwm1变低 
-				MOTORPWM = 0;
+			 	Servo=0;     //	pwm1变低 
 				
 				Timer0(0x6BFF - PWMHEIGHT);
 			}  break;
@@ -200,10 +212,101 @@ void tm0() interrupt 1
     
 }
 
+
+void Timer2Init(void)		//@11.0592MHz  
+{
+	AUXR |= 0x04;		//定时器时钟1T模式
+	T2L = 0xEC;		//设置定时初值
+	T2H = 0xEF;		//设置定时初值
+	AUXR |= 0x10;		//定时器2开始计时
+	IE2  |=  (1<<2);	//允许中断
+
+}
+
+
+
+void Timer2(uint32 us)	 	
+{	
+
+	uint32 valu;
+			IE2  |=  (0<<2);	//允许中断
+
+	valu=0xffff-us;  
+  T2H=valu>>8;   	
+  T2L=valu;
+	IE2  |=  (1<<2);	//允许中断
+}
+
+
+
+//定时器2中断服务程序
+void timer2_interrupt (void) interrupt 12
+{
+	static unsigned char   ss = 1;
+
+	switch(ss)
+	{
+			case 1:
+			{
+				MOTORPWM =1;
+				
+				Timer2(MOTORDUTY);
+			}  break;
+			case 2:
+			{
+				MOTORPWM = 0;
+				
+				Timer2(0x6BFF - MOTORDUTY);
+			}  break;
+			case 3:
+			{
+				Timer2(0x6BFF);
+			}  break;
+			case 4:
+			{
+				Timer2(0x6BFF);
+			}  break;
+			case 5:
+			{
+				Timer2(0x6BFF);
+			}  break;
+			case 6:
+			{
+				Timer2(0x6BFF);
+			}  break;
+			case 7:
+			{
+				Timer2(0x6BFF);
+			}  break;
+			case 8:
+			{
+				Timer2(0x6BFF);
+			}  break;
+			case 9:
+			{
+				Timer2(0x6BFF);
+
+        ss=0;
+			}  break;
+
+			default:break;
+	}
+	ss++;
+    
+}
+
+
+
 void Device_Init() {
 
     LED = 0;
     LOUND = 0;
+			
+		MOTORIN1 = 0;
+		MOTORIN2 = 0 ;
+		MOTORPWM = 0;
+		MOTORRUNING = 1;
+		
 }
 
 
@@ -393,27 +496,28 @@ void ResponseData(unsigned char *RES_DATA) {
 												MOTORIN1=1;
 										    MOTORIN2=0;	
 												
+												
 									if(RES_DATA[4] == 0x01){
-	
+													MOTORDUTY = 0X0115;
 									}else if(RES_DATA[4] == 0x02){
-									
+													MOTORDUTY = 0X1033;
 									}else if(0x03 <= RES_DATA[4] ){
-										
+													MOTORDUTY = 0X5663;
 									}
+									
 						}else if(RES_DATA[3] == 0x01){//后退
 								MOTORIN1=0;
 								MOTORIN2=1;	
 												
-							if(RES_DATA[4] == 0x01){
-								
-						  }else if(RES_DATA[4] == 0x02){
-								
-						  }else if(0x03 <= RES_DATA[4] ){
-								
-						  }
+									if(RES_DATA[4] == 0x01){
+													MOTORDUTY = 0X0115;
+									}else if(RES_DATA[4] == 0x02){
+													MOTORDUTY = 0X1033;
+									}else if(0x03 <= RES_DATA[4] ){
+													MOTORDUTY = 0X5663;
+									}
+							
 						}
-						
-						
 						
 					}
 					break;
@@ -446,7 +550,7 @@ void ResponseData(unsigned char *RES_DATA) {
 					if( RES_DATA[4]==0x02){
 						LED = 1;
 						LOUND = 1;
-						DELAY_MS(1000);
+						DELAY_MS(200);
 						LED = 0;
 						LOUND = 0;
             sendAckData(RES_DATA);
