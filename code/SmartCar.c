@@ -18,21 +18,21 @@
 #include "intrins.h"
 #include <string.h>  // 字符串处理头文件
 
-#define uint8   unsigned char  
+#define uint8     unsigned char  
 #define uint32    unsigned int   
 #define uint16    unsigned short int
-#define MAIN_Fosc		11059200UL	//定义主时钟
+#define MAIN_Fosc		11059200UL		//定义主时钟
 #define T1MS		(65536-MAIN_Fosc/1000) //1MS
 
+sbit LED      =  P5 ^ 5;         		  // LED灯
+sbit LOUND    =  P5 ^ 4;           		// 蜂鸣器
+		
+sbit Servo    =  P1 ^ 4;             		//舵机转向控制 定时器0的时钟输出口
+sbit MOTORPWM =  P1 ^ 5;           		// 控制电机PWM 转速
+sbit MOTORIN1 =  P1 ^ 6;          		 // 控制电机方向
+sbit MOTORIN2 =  P1 ^ 7;          		 // 控制电机方向
 
-sbit Servo  = P1^4;             //舵机 定时器0的时钟输出口
-sbit LED =    P5 ^ 5;           // LED灯
-sbit LOUND =  P5 ^ 4;           // 蜂鸣器
-sbit MOTORIN1 =  P1 ^ 6;           // 控制电机方向
-sbit MOTORIN2 =  P1 ^ 7;           // 控制电机方向
-/*注：在进行正反转切换的时候最好先刹车0.1S以上再反转，否则有可能损坏驱动器。
-在PWM为100%时，如果要切换电机方向，必须先刹车0.1S以上再给反转信号。*/
-sbit MOTORPWM =  P1 ^ 5;           // 控制电机PWM 转速
+/*注：在进行正反转切换的时候最好先刹车0.1S以上再反转，否则有可能损坏驱动器。在PWM为100%时，如果要切换电机方向，必须先刹车0.1S以上再给反转信号。*/
 
 bit busy;
 bit MOTORRUNING = 1;
@@ -94,22 +94,17 @@ void Timer2_Update(uint32 us);
 
 void main()
 {
-		P0M0 = 0x00;
-    P0M1 = 0x00;
-    P1M0 = 0x00;
-    P1M1 = 0x00;
-    P2M0 = 0x00;
-    P2M1 = 0x00;
-    P3M0 = 0x00;
-    P3M1 = 0x00;
-    P4M0 = 0x00;
-    P4M1 = 0x00;
-    P5M0 = 0x00;
-    P5M1 = 0x00;
-    P6M0 = 0x00;
-    P6M1 = 0x00;
-    P7M0 = 0x00;
-    P7M1 = 0x00;
+	P0M1 = 0;	P0M0 = 0;	//设置为准双向口
+	P1M1 = 0;	P1M0 = 0;	//设置为准双向口
+	P2M1 = 0;	P2M0 = 0;	//设置为准双向口
+	P3M1 = 0;	P3M0 = 0;	//设置为准双向口
+	P4M1 = 0;	P4M0 = 0;	//设置为准双向口
+	P5M1 = 0;	P5M0 = 0;	//设置为准双向口
+	P6M1 = 0;	P6M0 = 0;	//设置为准双向口
+	P7M1 = 0;	P7M0 = 0;	//设置为准双向口
+	
+	P1M1 &= ~(0x30);	//P1.5 P1.4 设置为推挽输出
+	P1M0 |=  (0x30);
 	
     Device_Init();
     USART_Init();
@@ -334,6 +329,8 @@ void USART_Init()
     TL1 = (65536 - (FOSC/4/BAUD));   //设置波特率重装值
     TH1 = (65536 - (FOSC/4/BAUD))>>8;
     TR1 = 1;                    //定时器1开始启动
+		PS = 1;                     //串口1中断优先级最高，以防出现无法控制情况
+	//	PT1 = 1;                     //定时器1中断优先级控制位
     ES = 1;                     //使能串口中断
     EA = 1;
 
