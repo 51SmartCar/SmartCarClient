@@ -46,7 +46,7 @@ BYTE CURRENT_LENGTH=0;
 
 BYTE DATA_GET[]=  { 0x7E, 0x00,     0,  0,      0,      0,       0x7E};
 
-
+/*
 
 //1843
 
@@ -58,6 +58,7 @@ BYTE DATA_GET[]=  { 0x7E, 0x00,     0,  0,      0,      0,       0x7E};
 //1. ms 0X4F31 向右30度角 2挡 
 //2.0ms 0X5665 向右45度角 3挡
 
+*/
 uint32 PWMHEIGHT = 0X40CC;
 
 uint32 MOTORDUTY = 0X40CC;
@@ -76,20 +77,19 @@ void SendDatas(char *s);
 void SendData(char *s);
 void UART_TC (unsigned char *str);
 void UART_T (unsigned char UART_data); 			//定义串口发送数据变量
-void UART_R();//接受数据
-void DELAY_MS(unsigned int timeout);				//@11.0592MHz   1ms
-void Delay200ms(void);
-void USART_Init();
-void Device_Init();
+void UART_R(void);                               //接受数据
+void DELAY_MS(uint8 ms);
+void USART_Init(void);
+void Device_Init(void);
 void ResponseData(unsigned char *RES_DATA);
 char CheckData(unsigned char *CHECK_DATA);
 void sendAckData(unsigned char *RES_DATA);
 
-void Timer0Init(void);
-void Timer0(uint32 us);
+void Timer0_Init(void);
+void Timer0_Update(uint32 us);
 
-void Timer2Init(void);		//@11.0592MHz  
-void Timer2(uint32 us);
+void Timer2_Init(void);
+void Timer2_Update(uint32 us);
 
 
 void main()
@@ -114,9 +114,9 @@ void main()
     Device_Init();
     USART_Init();
 		
-		Timer0Init();
+		Timer0_Init();
 
-    Timer2Init();
+    Timer2_Init();
 
 
 	  WDT_CONTR = 0x06;       //看门狗定时器溢出时间计算公式: (12 * 32768 * PS) / FOSC (秒)
@@ -132,7 +132,7 @@ void main()
 }
 
 
-void Timer0Init(void)		//@11.0592MHz
+void Timer0_Init(void)		//@11.0592MHz
 {
 	AUXR |= 0x80;		//定时器时钟1T模式
 	TMOD &= 0xF0;		//设置定时器模式
@@ -146,7 +146,7 @@ void Timer0Init(void)		//@11.0592MHz
 }
 
 
-void Timer0(uint32 us)	 	
+void Timer0_Update(uint32 us)	 	
 {	
 	uint32 valu;
 	valu=0xffff-us;  
@@ -168,41 +168,41 @@ void Timer0_interrupt() interrupt 1
 			{
 				Servo = 1;
 				
-				Timer0(PWMHEIGHT);
+				Timer0_Update(PWMHEIGHT);
 			}  break;
 			case 2:
 			{
 			 	Servo=0;     //	pwm1变低 
 				
-				Timer0(0x6BFF - PWMHEIGHT);
+				Timer0_Update(0x6BFF - PWMHEIGHT);
 			}  break;
 			case 3:
 			{
-				Timer0(0x6BFF);
+				Timer0_Update(0x6BFF);
 			}  break;
 			case 4:
 			{
-				Timer0(0x6BFF);
+				Timer0_Update(0x6BFF);
 			}  break;
 			case 5:
 			{
-				Timer0(0x6BFF);
+				Timer0_Update(0x6BFF);
 			}  break;
 			case 6:
 			{
-				Timer0(0x6BFF);
+				Timer0_Update(0x6BFF);
 			}  break;
 			case 7:
 			{
-				Timer0(0x6BFF);
+				Timer0_Update(0x6BFF);
 			}  break;
 			case 8:
 			{
-				Timer0(0x6BFF);
+				Timer0_Update(0x6BFF);
 			}  break;
 			case 9:
 			{
-				Timer0(0x6BFF);
+				Timer0_Update(0x6BFF);
         i=0;
 			}  break;
 
@@ -213,7 +213,7 @@ void Timer0_interrupt() interrupt 1
 }
 
 
-void Timer2Init(void)		//@11.0592MHz  
+void Timer2_Init(void)		//@11.0592MHz  
 {
 	AUXR |= 0x04;		//定时器时钟1T模式
 	T2L = 0xEC;		//设置定时初值
@@ -225,11 +225,11 @@ void Timer2Init(void)		//@11.0592MHz
 
 
 
-void Timer2(uint32 us)	 	
+void Timer2_Update(uint32 us)	 	
 {	
 
 	uint32 valu;
-			IE2  |=  (0<<2);	//允许中断
+	IE2  |=  (0<<2);	//允许中断
 
 	valu=0xffff-us;  
   T2H=valu>>8;   	
@@ -250,41 +250,41 @@ void timer2_interrupt (void) interrupt 12
 			{
 				MOTORPWM =1;
 				
-				Timer2(MOTORDUTY);
+				Timer2_Update(MOTORDUTY);
 			}  break;
 			case 2:
 			{
 				MOTORPWM = 0;
 				
-				Timer2(0x6BFF - MOTORDUTY);
+				Timer2_Update(0x6BFF - MOTORDUTY);
 			}  break;
 			case 3:
 			{
-				Timer2(0x6BFF);
+				Timer2_Update(0x6BFF);
 			}  break;
 			case 4:
 			{
-				Timer2(0x6BFF);
+				Timer2_Update(0x6BFF);
 			}  break;
 			case 5:
 			{
-				Timer2(0x6BFF);
+				Timer2_Update(0x6BFF);
 			}  break;
 			case 6:
 			{
-				Timer2(0x6BFF);
+				Timer2_Update(0x6BFF);
 			}  break;
 			case 7:
 			{
-				Timer2(0x6BFF);
+				Timer2_Update(0x6BFF);
 			}  break;
 			case 8:
 			{
-				Timer2(0x6BFF);
+				Timer2_Update(0x6BFF);
 			}  break;
 			case 9:
 			{
-				Timer2(0x6BFF);
+				Timer2_Update(0x6BFF);
 
         ss=0;
 			}  break;
@@ -342,7 +342,7 @@ void USART_Init()
 /*----------------------------
 UART 中断服务程序
 -----------------------------*/
-void Uart() interrupt 4 using 1
+void Uart_interrupt() interrupt 4 using 1
 {
     if (RI)
     {
@@ -489,7 +489,7 @@ void ResponseData(unsigned char *RES_DATA) {
 在PWM为100%时，如果要切换电机方向，必须先刹车0.1S以上再给反转信号。*/
 
 										MOTORRUNING = 0;
-										Delay200ms();
+					        	DELAY_MS(200);
 										MOTORRUNING = 1;
 										
 						  }else if(RES_DATA[3] == 0x02){//前进
@@ -557,7 +557,7 @@ void ResponseData(unsigned char *RES_DATA) {
 					}else if( RES_DATA[4]==0x01){
 						LED = 1;
 						LOUND = 1;
-						DELAY_MS(1000);
+						DELAY_MS(200);
 						LED = 0;
 						LOUND = 0;
             sendAckData(RES_DATA);
@@ -589,47 +589,20 @@ void sendAckData(unsigned char *RES_DATA) {
 }
 
 
-
-void DELAY_1MS() {
-    unsigned char i, j;
-
-    _nop_();
-    _nop_();
-    _nop_();
-    i = 11;
-    j = 190;
-    do
-    {
-        while (--j);
-    } while (--i);
-
-
-}
-
-void DELAY_MS(unsigned int timeout)		//@11.0592MHz
+//========================================================================
+// 函数: void  delay_ms(u8 ms)
+// 描述: 延时函数。
+// 参数: ms,要延时的ms数, 这里只支持1~255ms. 自动适应主时钟.
+// 返回: none.
+// 版本: VER1.0
+// 日期: 2013-4-1
+// 备注: 
+//========================================================================
+void  DELAY_MS(uint8 ms)
 {
-    int t = 0;
-    while (t < timeout)
-    {
-        t++;
-        DELAY_1MS();
-    }
-}
-
-void Delay200ms()		//@11.0592MHz
-{
-	unsigned char i, j, k;
-
-	_nop_();
-	_nop_();
-	i = 9;
-	j = 104;
-	k = 139;
-	do
-	{
-		do
-		{
-			while (--k);
-		} while (--j);
-	} while (--i);
+     unsigned int i;
+	 do{
+	      i = MAIN_Fosc / 13000;
+		  while(--i)	;
+     }while(--ms);
 }
