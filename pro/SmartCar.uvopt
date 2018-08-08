@@ -166,10 +166,10 @@
       <FileType>1</FileType>
       <tvExp>1</tvExp>
       <Focus>0</Focus>
-      <ColumnNumber>49</ColumnNumber>
+      <ColumnNumber>24</ColumnNumber>
       <tvExpOptDlg>0</tvExpOptDlg>
-      <TopLine>372</TopLine>
-      <CurrentLine>394</CurrentLine>
+      <TopLine>393</TopLine>
+      <CurrentLine>408</CurrentLine>
       <bDave2>0</bDave2>
       <PathWithFileName>..\code\SmartCar.c</PathWithFileName>
       <FilenameWithoutPath>SmartCar.c</FilenameWithoutPath>

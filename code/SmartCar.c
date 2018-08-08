@@ -391,12 +391,21 @@ void UART_R()
 {
     DATA_GET[CURRENT_LENGTH]=SBUF;
     CURRENT_LENGTH++;
+		
     if(CURRENT_LENGTH==DATA_LENGTH && !B_TX1_Busy)
     {
-        CURRENT_LENGTH=0;
-				B_TX1_Busy = 1;
-        ResponseData(DATA_GET);
-    }
+				if(DATA_GET[0] == 0x7E && DATA_GET[DATA_LENGTH-1] == 0x7E ){
+						CURRENT_LENGTH=0;
+						B_TX1_Busy = 1;
+						ResponseData(DATA_GET);
+				}else {
+				
+				}
+       
+    }else if(	CURRENT_LENGTH==2 && DATA_GET[0]==0x7E && DATA_GET[1]==0x7E){
+			CURRENT_LENGTH = 1;
+		}
+		
 }
 
 
@@ -415,7 +424,7 @@ void ResponseData(unsigned char *RES_DATA) {
 				switch(RES_DATA[1]){
 					case 0x01:{//转弯和角度
 						if( 0x00<=RES_DATA[3]<=0x02 && 0x00<=RES_DATA[4]<=0x03){
-							sendAckData(RES_DATA);
+						//	sendAckData(RES_DATA);
 							
 							//1.0ms 0X2B32 向左45度角 3挡
 							//1. ms 0X3265 向左30度角 2挡 
@@ -471,7 +480,7 @@ void ResponseData(unsigned char *RES_DATA) {
 					};
 					case 0x04:{//方向和油门
 						if( 0x00<=RES_DATA[3]<=0x02 && 0x00<=RES_DATA[4]<=0x03 && MOTORRUNING == 1){
-							sendAckData(RES_DATA);
+					//		sendAckData(RES_DATA);
 							
 							
 								if(RES_DATA[3] == 0x00 || RES_DATA[4] == 0x00 ){//停止
@@ -481,7 +490,7 @@ void ResponseData(unsigned char *RES_DATA) {
 	在PWM为100%时，如果要切换电机方向，必须先刹车0.1S以上再给反转信号。*/
 
 											MOTORRUNING = 0;
-											DELAY_MS(200);
+											DELAY_MS(150);
 											MOTORRUNING = 1;
 											
 								}else if(RES_DATA[3] == 0x02){//前进
