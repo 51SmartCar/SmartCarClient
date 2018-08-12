@@ -60,7 +60,7 @@ BYTE DATA_GET[]=  { 0x7E, 0x00,     0,  0,      0,      0,       0x7E};
 */
 uint32 PWMHEIGHT = 0X40CC;
 
-uint32 MOTORDUTY = 0X40CC;
+uint32 MOTORDUTY = 0X3B66;
 
 
 #define FOSC 11059200L       					   //系统频率
@@ -442,7 +442,7 @@ void ResponseData(unsigned char *RES_DATA) {
 								}else if(RES_DATA[4] == 0x02){
 									PWMHEIGHT = 0X3265;
 								}else if(0x03 <= RES_DATA[4] ){
-									PWMHEIGHT = 0X2B32;
+									PWMHEIGHT = 0X3032;
 								}
 							}else if(RES_DATA[3] == 0x01){//右转
 								if(RES_DATA[4] == 0x01){
@@ -450,7 +450,7 @@ void ResponseData(unsigned char *RES_DATA) {
 								}else if(RES_DATA[4] == 0x02){
 									PWMHEIGHT = 0X4F31;
 								}else if(0x03 <= RES_DATA[4] ){
-									PWMHEIGHT = 0X5665;
+									PWMHEIGHT = 0X5365;
 								}
 							}
 							
@@ -499,7 +499,7 @@ void ResponseData(unsigned char *RES_DATA) {
 													
 													
 										if(RES_DATA[4] == 0x01){
-														MOTORDUTY = 0X0115;
+														MOTORDUTY = 0X3B66;
 										}else if(RES_DATA[4] == 0x02){
 														MOTORDUTY = 0X1033;
 										}else if(0x03 <= RES_DATA[4] ){
@@ -511,7 +511,7 @@ void ResponseData(unsigned char *RES_DATA) {
 									MOTORIN2=1;	
 													
 										if(RES_DATA[4] == 0x01){
-														MOTORDUTY = 0X0115;
+														MOTORDUTY = 0X3B66;
 										}else if(RES_DATA[4] == 0x02){
 														MOTORDUTY = 0X1033;
 										}else if(0x03 <= RES_DATA[4] ){
@@ -543,7 +543,6 @@ void ResponseData(unsigned char *RES_DATA) {
 							DELAY_MS(200);
 							LED = 0;
 							LOUND = 0;
-							DELAY_MS(200);
 						}
 						break;
 					};
@@ -551,14 +550,26 @@ void ResponseData(unsigned char *RES_DATA) {
 						if( RES_DATA[4]==0x02){
 							LED = 1;
 							LOUND = 1;
-							DELAY_MS(200);
+							DELAY_MS(100);
+							LED = 0;
+							LOUND = 0;
+							DELAY_MS(100);
+							LED = 1;
+							LOUND = 1;
+							DELAY_MS(100);
 							LED = 0;
 							LOUND = 0;
 							sendAckData(RES_DATA);
 						}else if( RES_DATA[4]==0x01){
 							LED = 1;
 							LOUND = 1;
-							DELAY_MS(200);
+							DELAY_MS(100);
+							LED = 0;
+							LOUND = 0;
+							DELAY_MS(100);
+							LED = 1;
+							LOUND = 1;
+							DELAY_MS(100);
 							LED = 0;
 							LOUND = 0;
 							sendAckData(RES_DATA);
