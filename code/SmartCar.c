@@ -422,6 +422,15 @@ char CheckData(unsigned char *CHECK_DATA) {
 void ResponseData(unsigned char *RES_DATA) {
 		if(CheckData(RES_DATA) == RES_DATA[5]) {
 				switch(RES_DATA[1]){
+					case 0x00:{//心跳包
+						if( RES_DATA[4]==0x00 && RES_DATA[3]==0x00){
+							sendAckData(RES_DATA);
+							LED = 1;
+							DELAY_MS(10);
+							LED = 0;
+						}
+						break;
+					};
 					case 0x01:{//转弯和角度
 						if( 0x00<=RES_DATA[3]<=0x02 && 0x00<=RES_DATA[4]<=0x03){
 						//	sendAckData(RES_DATA);
