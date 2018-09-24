@@ -24,12 +24,12 @@
 #define MAIN_Fosc		11059200UL		//定义主时钟
 #define T1MS		(65536-MAIN_Fosc/1000) //1MS
 
-sbit LED      =  P5 ^ 5;         		  // LED灯
-sbit LOUND    =  P5 ^ 4;           		// 蜂鸣器
-sbit Servo    =  P1 ^ 4;             	//舵机转向控制 定时器0的时钟输出口
-sbit MOTORPWM =  P1 ^ 5;           		// 控制电机PWM 转速
-sbit MOTORIN1 =  P1 ^ 6;          		// 控制电机方向
-sbit MOTORIN2 =  P1 ^ 7;          	  // 控制电机方向
+sbit LED      =  P5 ^ 4;         		  // LED灯
+sbit LOUND    =  P1 ^ 7;           		// 蜂鸣器
+sbit Servo    =  P4 ^ 5;             	//舵机转向控制 定时器0的时钟输出口
+sbit MOTORPWM =  P1 ^ 4;           		// 控制电机PWM 转速
+sbit MOTORIN1 =  P1 ^ 5;          		// 控制电机方向
+sbit MOTORIN2 =  P1 ^ 6;          	  // 控制电机方向
 
 /*注：在进行正反转切换的时候最好先刹车0.1S以上再反转，否则有可能损坏驱动器。在PWM为100%时，如果要切换电机方向，必须先刹车0.1S以上再给反转信号。*/
 
@@ -69,16 +69,23 @@ uint32 MOTORDUTY = 0X3B66;
 #define S1_S0 0x40              					//P_SW1.6
 #define S1_S1 0x80              					//P_SW1.7
 	
- 
+#define S2RI  0x01              //S2CON.0
+#define S2TI  0x02              //S2CON.1
+#define S2RB8 0x04              //S2CON.2
+#define S2TB8 0x08              //S2CON.3
+
+#define S2_S0 0x01              //P_SW2.0
+
+
 void SendString(char *s);
 void SendDatas(char *s);
 
 void SendData(char *s);
-void UART_TC (unsigned char *str);
-void UART_T (unsigned char UART_data); 			//定义串口发送数据变量
+//void UART_TC (unsigned char *str);
+//void UART_T (unsigned char UART_data); 			//定义串口发送数据变量
 void UART_R(void);                               //接受数据
 void DELAY_MS(uint8 ms);
-void USART_Init(void);
+void USART2_Init(void);
 void Device_Init(void);
 void ResponseData(unsigned char *RES_DATA);
 char CheckData(unsigned char *CHECK_DATA);
@@ -87,12 +94,14 @@ void sendAckData(unsigned char *RES_DATA);
 void Timer0_Init(void);
 void Timer0_Update(uint32 us);
 
-void Timer2_Init(void);
-void Timer2_Update(uint32 us);
+//void Timer2_Init(void);
+//void Timer2_Update(uint32 us);
 
 
 void main()
 {
+	  //  unsigned char DATA_SEND[]= { 0x7E, 0x00,     0x02,  0x00,    0x00 ,      0x00,       0x7E};
+
 		P0M1 = 0;	P0M0 = 0;	//设置为准双向口
 		P1M1 = 0;	P1M0 = 0;	//设置为准双向口
 		P2M1 = 0;	P2M0 = 0;	//设置为准双向口
@@ -102,13 +111,13 @@ void main()
 		P6M1 = 0;	P6M0 = 0;	//设置为准双向口
 		P7M1 = 0;	P7M0 = 0;	//设置为准双向口
 		
-		P1M1 &= ~(0x30);	  //P1.5 P1.4 设置为推挽输出
-		P1M0 |=  (0x30);
+		P1M1 &= ~(0x18);	  //P1.4 P1.3 设置为推挽输出
+		P1M0 |=  (0x18);
 		
     Device_Init();
-    USART_Init();
+    USART2_Init();
 		Timer0_Init();
-    Timer2_Init();
+  //  Timer2_Init();
 
 	  WDT_CONTR = 0x06;       //看门狗定时器溢出时间计算公式: (12 * 32768 * PS) / FOSC (秒)
                             //设置看门狗定时器分频数为32,溢出时间如下:
@@ -117,6 +126,7 @@ void main()
                             //20M      : 0.63s
     WDT_CONTR |= 0x20;      //启动看门狗
 
+   //sendAckData(DATA_SEND);
     while(1) {
 			WDT_CONTR |= 0x10;  //喂狗程序
 		};
@@ -158,18 +168,18 @@ void Timer0_interrupt() interrupt 1
 				case 1:
 				{
 					Servo = 1;
-					
+					MOTORPWM =1;
 					Timer0_Update(PWMHEIGHT);
 				}  break;
 				case 2:
 				{
 					Servo=0;     //	pwm1变低 
-					
 					Timer0_Update(0x6BFF - PWMHEIGHT);
 				}  break;
 				case 3:
 				{
 					Timer0_Update(0x6BFF);
+					MOTORPWM =0;
 				}  break;
 				case 4:
 				{
@@ -178,6 +188,7 @@ void Timer0_interrupt() interrupt 1
 				case 5:
 				{
 					Timer0_Update(0x6BFF);
+					
 				}  break;
 				case 6:
 				{
@@ -204,91 +215,91 @@ void Timer0_interrupt() interrupt 1
 }
 
 
-void Timer2_Init(void)		//@11.0592MHz  
-{
-		AUXR |= 0x04;		//定时器时钟1T模式
-		T2L   = 0xEC;		//设置定时初值
-		T2H   = 0xEF;		//设置定时初值
-		AUXR |= 0x10;		//定时器2开始计时
-		IE2  |=  (1<<2);	//允许中断
+//void Timer2_Init(void)		//@11.0592MHz  
+//{
+//		AUXR |= 0x04;		//定时器时钟1T模式
+//		T2L   = 0xEC;		//设置定时初值
+//		T2H   = 0xEF;		//设置定时初值
+//		AUXR |= 0x10;		//定时器2开始计时
+//		IE2  |=  (1<<2);	//允许中断
 
-}
-
-
-void Timer2_Update(uint32 us)	 	
-{	
-
-		uint32 valu;
-		IE2  |=  (0<<2);	//允许中断
-		valu  = 0xffff-us;  
-		T2H   = valu>>8;   	
-		T2L   = valu;
-		IE2  |=  (1<<2);	//允许中断
-}
+//}
 
 
+//void Timer2_Update(uint32 us)	 	
+//{	
 
-//定时器2中断服务程序
-void timer2_interrupt (void) interrupt 12
-{
-		static unsigned char   ss = 1;
+//		uint32 valu;
+//		IE2  |=  (0<<2);	//允许中断
+//		valu  = 0xffff-us;  
+//		T2H   = valu>>8;   	
+//		T2L   = valu;
+//		IE2  |=  (1<<2);	//允许中断
+//}
 
-		switch(ss)
-		{
-				case 1:
-				{
-					MOTORPWM =1;
-					
-					Timer2_Update(MOTORDUTY);
-				}  break;
-				case 2:
-				{
-					MOTORPWM = 0;
-					
-					Timer2_Update(0x6BFF - MOTORDUTY);
-				}  break;
-				case 3:
-				{
-					Timer2_Update(0x6BFF);
-				}  break;
-				case 4:
-				{
-					Timer2_Update(0x6BFF);
-				}  break;
-				case 5:
-				{
-					Timer2_Update(0x6BFF);
-				}  break;
-				case 6:
-				{
-					Timer2_Update(0x6BFF);
-				}  break;
-				case 7:
-				{
-					Timer2_Update(0x6BFF);
-				}  break;
-				case 8:
-				{
-					Timer2_Update(0x6BFF);
-				}  break;
-				case 9:
-				{
-					Timer2_Update(0x6BFF);
+ //摄像头   白负  黑正
 
-					ss=0;
-				}  break;
+////定时器2中断服务程序
+//void timer2_interrupt (void) interrupt 12
+//{
+//		static unsigned char   ss = 1;
 
-				default:break;
-		}
-		ss++;
-}
+//		switch(ss)
+//		{
+//				case 1:
+//				{
+//					MOTORPWM =1;
+//					
+//					Timer2_Update(MOTORDUTY);
+//				}  break;
+//				case 2:
+//				{
+//					MOTORPWM = 0;
+//					
+//					Timer2_Update(0x6BFF - MOTORDUTY);
+//				}  break;
+//				case 3:
+//				{
+//					Timer2_Update(0x6BFF);
+//				}  break;
+//				case 4:
+//				{
+//					Timer2_Update(0x6BFF);
+//				}  break;
+//				case 5:
+//				{
+//					Timer2_Update(0x6BFF);
+//				}  break;
+//				case 6:
+//				{
+//					Timer2_Update(0x6BFF);
+//				}  break;
+//				case 7:
+//				{
+//					Timer2_Update(0x6BFF);
+//				}  break;
+//				case 8:
+//				{
+//					Timer2_Update(0x6BFF);
+//				}  break;
+//				case 9:
+//				{
+//					Timer2_Update(0x6BFF);
+
+//					ss=0;
+//				}  break;
+
+//				default:break;
+//		}
+//		ss++;
+//}
 
 
 
 void Device_Init() {
 
     LED = 0;
-    LOUND = 0;
+    LOUND = 1;
 			
 		MOTORIN1 = 0;
 		MOTORIN2 = 0 ;
@@ -297,19 +308,33 @@ void Device_Init() {
 		
 }
 
-
-void USART_Init()
+void USART2_Init()
 {
 
-//   ACC = P_SW1;
-//    ACC &= ~(S1_S0 | S1_S1);    //S1_S0=0 S1_S1=0
-//    P_SW1 = ACC;                //(P3.0/RxD, P3.1/TxD)
+    P_SW2 &= ~S2_S0;            //S2_S0=0 (P1.0/RxD2, P1.1/TxD2)
 
-    ACC = P_SW1;
-    ACC &= ~(S1_S0 | S1_S1);    //S1_S0=1 S1_S1=0
-    ACC |= S1_S0;               //(P3.6/RxD_2, P3.7/TxD_2)
-    P_SW1 = ACC;
-    SCON = 0x50;                //8位可变波特率
+    S2CON = 0x50;               //8位可变波特率
+    T2L = (65536 - (FOSC/4/BAUD));   //设置波特率重装值
+    T2H = (65536 - (FOSC/4/BAUD))>>8;
+    AUXR = 0x14;                //T2为1T模式, 并启动定时器2
+    IE2 = 0x01;                 //使能串口2中断
+    EA = 1;
+		B_TX1_Busy = 0;
+		IP2 |=0x01;
+}
+
+//void USART_Init()
+//{
+
+////   ACC = P_SW1;
+////    ACC &= ~(S1_S0 | S1_S1);    //S1_S0=0 S1_S1=0
+////    P_SW1 = ACC;                //(P3.0/RxD, P3.1/TxD)
+
+////    ACC = P_SW1;
+////    ACC &= ~(S1_S0 | S1_S1);    //S1_S0=1 S1_S1=0
+////    ACC |= S1_S0;               //(P3.6/RxD_2, P3.7/TxD_2)
+////    P_SW1 = ACC;
+////    SCON = 0x50;                //8位可变波特率
 
 //  ACC = P_SW1;
 //  ACC &= ~(S1_S0 | S1_S1);    //S1_S0=0 S1_S1=1
@@ -317,37 +342,36 @@ void USART_Init()
 //  P_SW1 = ACC;
 
 
-    AUXR = 0x40;                //定时器1为1T模式
-    TMOD = 0x00;                //定时器1为模式0(16位自动重载)
-    TL1 = (65536 - (FOSC/4/BAUD));   //设置波特率重装值
-    TH1 = (65536 - (FOSC/4/BAUD))>>8;
-    TR1 = 1;                    //定时器1开始启动
-	//	PS = 1;                     //串口1中断优先级最高，以防出现无法控制情况
-	//  PT1 = 1;                     //定时器1中断优先级控制位
-    ES = 1;                     //使能串口中断
-    EA = 1;
-		
-		B_TX1_Busy = 0;
+//    AUXR = 0x40;                //定时器1为1T模式
+//    TMOD = 0x00;                //定时器1为模式0(16位自动重载)
+//    TL1 = (65536 - (FOSC/4/BAUD));   //设置波特率重装值
+//    TH1 = (65536 - (FOSC/4/BAUD))>>8;
+//    TR1 = 1;                    //定时器1开始启动
+//	//	PS = 1;                     //串口1中断优先级最高，以防出现无法控制情况
+//	//  PT1 = 1;                     //定时器1中断优先级控制位
+//    ES = 1;                     //使能串口中断
+//    EA = 1;
+//		
+//		B_TX1_Busy = 0;
 
 
-}
+//}
 
 /*----------------------------
 UART 中断服务程序
 -----------------------------*/
-void Uart_interrupt() interrupt 4 using 1
+void Uart_interrupt() interrupt 8 using 1
 {
-    if (RI)
-    {
-        while(!RI);
-        RI=0;
-        UART_R();
 
-    }
-    if (TI)
+	 if (S2CON & S2RI)
     {
-        while(!TI);
-        TI = 0;                 //清除TI位
+        S2CON &= ~S2RI;         //清除S2RI位
+         UART_R();
+    }
+    if (S2CON & S2TI)
+    {
+        S2CON &= ~S2TI;         //清除S2TI位
+        B_TX1_Busy = 0;               //清忙标志
     }
 }
 
@@ -363,33 +387,33 @@ void  SendData(char *s)
 
     for(i=0; i<DATA_LENGTH; i++)
     {
-        SBUF=s[i];
-				while(!TI);		//检查发送中断标志位
-				TI = 0;	
+        S2BUF =s[i];
+					while(!(S2CON & S2TI));
+						S2CON &= ~S2TI;         //清除S2TI位
     }
 }
 
-void UART_T (unsigned char UART_data) { //定义串口发送数据变量
-    SBUF = UART_data;	//将接收的数据发送回去
-    while(!TI);		//检查发送中断标志位
-    TI = 0;			//令发送中断标志位为0（软件清零）
-}
+//void UART_T (unsigned char UART_data) { //定义串口发送数据变量
+//    S2BUF  = UART_data;	//将接收的数据发送回去
+//    	while(!(S2CON & S2TI));
+//						S2CON &= ~S2TI;         //清除S2TI位
+//}
 
 
-void UART_TC (unsigned char *str) {
-    while(*str != '\0') {
-        UART_T(*str);
-        *str++;
-    }
-    *str = 0;
-}
+//void UART_TC (unsigned char *str) {
+//    while(*str != '\0') {
+//        UART_T(*str);
+//        *str++;
+//    }
+//    *str = 0;
+//}
 
 
 //串口  接收到的数据
 
 void UART_R()
 {
-    DATA_GET[CURRENT_LENGTH]=SBUF;
+    DATA_GET[CURRENT_LENGTH]=S2BUF ;
     CURRENT_LENGTH++;
 		
     if(CURRENT_LENGTH==DATA_LENGTH && !B_TX1_Busy)
@@ -469,10 +493,10 @@ void ResponseData(unsigned char *RES_DATA) {
 					};
 					case 0x02:{//喇叭
 						if( RES_DATA[4]==0x02){
-							 LOUND = 1;
+							 LOUND = 0;
 							sendAckData(RES_DATA);
 						}else if( RES_DATA[4]==0x01){
-							LOUND = 0;
+							LOUND = 1;
 							sendAckData(RES_DATA);
 						}
 						break;
@@ -536,51 +560,51 @@ void ResponseData(unsigned char *RES_DATA) {
 						if( RES_DATA[4]==0x02){
 							sendAckData(RES_DATA);
 							LED = 1;
-							LOUND = 1;
+							LOUND = 0;
 							DELAY_MS(200);
 							LED = 0;
-							LOUND = 0;
+							LOUND = 1;
 							DELAY_MS(200);
 							LED = 1;
-							LOUND = 1;
+							LOUND = 0;
 							DELAY_MS(200);
 							LED = 0;
-							LOUND = 0;
+							LOUND = 1;
 							DELAY_MS(200);
 							LED = 1;
-							LOUND = 1;
+							LOUND = 0;
 							DELAY_MS(200);
 							LED = 0;
-							LOUND = 0;
+							LOUND = 1;
 						}
 						break;
 					};
 					case 0x06:{//引擎   TODOLED显示工作状态
 						if( RES_DATA[4]==0x02){
 							LED = 1;
-							LOUND = 1;
+							LOUND = 0;
 							DELAY_MS(100);
 							LED = 0;
-							LOUND = 0;
+							LOUND = 1;
 							DELAY_MS(100);
 							LED = 1;
-							LOUND = 1;
+							LOUND = 0;
 							DELAY_MS(100);
 							LED = 0;
-							LOUND = 0;
+							LOUND = 1;
 							sendAckData(RES_DATA);
 						}else if( RES_DATA[4]==0x01){
 							LED = 1;
-							LOUND = 1;
+							LOUND = 0;
 							DELAY_MS(100);
 							LED = 0;
-							LOUND = 0;
+							LOUND = 1;
 							DELAY_MS(100);
 							LED = 1;
-							LOUND = 1;
+							LOUND = 0;
 							DELAY_MS(100);
 							LED = 0;
-							LOUND = 0;
+							LOUND = 1;
 							sendAckData(RES_DATA);
 						}
 						break;
