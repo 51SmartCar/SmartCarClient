@@ -184,6 +184,7 @@ void Timer0_interrupt() interrupt 1
 				case 4:
 				{
 					Timer0_Update(0x6BFF);
+					
 				}  break;
 				case 5:
 				{
@@ -450,7 +451,7 @@ void ResponseData(unsigned char *RES_DATA) {
 						if( RES_DATA[4]==0x00 && RES_DATA[3]==0x00){
 							sendAckData(RES_DATA);
 							LED = 1;
-							DELAY_MS(10);
+							DELAY_MS(80);
 							LED = 0;
 						}
 						break;
@@ -473,9 +474,9 @@ void ResponseData(unsigned char *RES_DATA) {
 								if(RES_DATA[4] == 0x01){
 									PWMHEIGHT = 0X3998;
 								}else if(RES_DATA[4] == 0x02){
-									PWMHEIGHT = 0X3265;
+									PWMHEIGHT = 0X3565;
 								}else if(0x03 <= RES_DATA[4] ){
-									PWMHEIGHT = 0X3032;
+									PWMHEIGHT = 0X3432;
 								}
 							}else if(RES_DATA[3] == 0x01){//срв╙
 								if(RES_DATA[4] == 0x01){
@@ -483,7 +484,7 @@ void ResponseData(unsigned char *RES_DATA) {
 								}else if(RES_DATA[4] == 0x02){
 									PWMHEIGHT = 0X4F31;
 								}else if(0x03 <= RES_DATA[4] ){
-									PWMHEIGHT = 0X5365;
+									PWMHEIGHT = 0X5065;
 								}
 							}
 							
