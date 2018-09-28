@@ -38,6 +38,7 @@ uint8 DATA_LENGTH = 7;
 uint8 CURRENT_LENGTH=0;
 
 uint8 DATA_GET[]=  { 0x7E, 0x00,     0,  0,      0,      0,       0x7E};
+	uint8 RESS[]=  { 0x7E, 0x07,     0,  0,      0,      0,       0x7E};
 
 
 void SendData(char *s);
@@ -55,7 +56,7 @@ void main()
     UART2_Init();
 		Timer0_Init();
 		Timer1_Init();
-
+		Timer4_Init();
 	  WDT_CONTR = 0x06;       //看门狗定时器溢出时间计算公式: (12 * 32768 * PS) / FOSC (秒)
                             //设置看门狗定时器分频数为32,溢出时间如下:
                             //11.0592M : 1.14s
@@ -65,6 +66,7 @@ void main()
 
     while(1) {
 			WDT_CONTR |= 0x10;  //喂狗程序
+			GetDistance();
 		};
 }
 
@@ -171,7 +173,8 @@ void UART_R()
 
 
 void ResponseData(unsigned char *RES_DATA) {
-		if(CheckData(RES_DATA) == RES_DATA[5]) {
+
+		if(RES_DATA[2]== 0x01 && CheckData(RES_DATA) == RES_DATA[5]) {
 				switch(RES_DATA[1]){
 					case 0x00:{//心跳包
 						if( RES_DATA[4]==0x00 && RES_DATA[3]==0x00){
@@ -255,22 +258,22 @@ void ResponseData(unsigned char *RES_DATA) {
 											Motor_Actions_Status(1,0);
 													
 										if(RES_DATA[4] == 0x01){
-														MOTORDUTY = 0X3B66;
-										}else if(RES_DATA[4] == 0x02){
 														MOTORDUTY = 0X4B66;
-										}else if(0x03 <= RES_DATA[4] ){
+										}else if(RES_DATA[4] == 0x02){
 														MOTORDUTY = 0X5B66;
+										}else if(0x03 <= RES_DATA[4] ){
+														MOTORDUTY = 0X6B66;
 										}
 										
 							}else if(RES_DATA[3] == 0x01){//后退
 									Motor_Actions_Status(0,1);
 													
 										if(RES_DATA[4] == 0x01){
-														MOTORDUTY = 0X3B66;
-										}else if(RES_DATA[4] == 0x02){
 														MOTORDUTY = 0X4B66;
-										}else if(0x03 <= RES_DATA[4] ){
+										}else if(RES_DATA[4] == 0x02){
 														MOTORDUTY = 0X5B66;
+										}else if(0x03 <= RES_DATA[4] ){
+														MOTORDUTY = 0X6B66;
 										}
 								
 							}
@@ -295,7 +298,15 @@ void ResponseData(unsigned char *RES_DATA) {
 						}
 						break;
 					};
-					
+					case 0x07:{//超声波   
+						if( RES_DATA[4]==0x02){
+							RES_DATA[4] = Num_Distance &0xff;//低8位
+							RES_DATA[3] = Num_Distance >>8; //高8位
+							SendAckData(RES_DATA);
+							Led_Actions_NumAndMS(1,10);
+						}
+						break;
+					};
 					default:
 						break;
 					

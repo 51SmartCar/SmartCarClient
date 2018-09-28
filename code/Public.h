@@ -10,6 +10,7 @@
 
 extern unsigned int PWMHEIGHT;
 extern unsigned int MOTORDUTY;
+extern unsigned int Num_Distance;
 
 extern unsigned char CheckData(unsigned char *CHECK_DATA);
 extern unsigned char uint_to_hex(unsigned int num);

@@ -1,10 +1,14 @@
 #include "Timer.h"
 #include "Public.h"
-
+#include "Delay.h"
 sbit Servo    =  P4 ^ 5;             	//舵机转向控制 定时器0的时钟输出口
 sbit MOTORPWM =  P1 ^ 4;           		// 控制电机PWM 转速
 
-
+//IO口设置
+#define     ECHO_IO     P00                                         //ECHO接P1.0
+#define     TRIG_IO     P01                                         //TRIG接P1.1
+//变量定义
+unsigned long Timer4_Count = 0;                                    //定时器0中断计数变量
 
 void InitMoter(void){
 
@@ -92,6 +96,38 @@ void Timer0_interrupt() interrupt 1
 			
 }
 
+
+void Timer4_Init(void)		//100微秒@11.0592MHz
+{
+	T4T3M |= 0x20;		//定时器时钟1T模式
+	T4L = 0x91;		//设置定时初值
+	T4H = 0xFF;		//设置定时初值
+	T4T3M |= 0x80;		//定时器4开始计时
+	
+   IE2 |= 0x40;                    //开定时器4中断
+    EA = 1;
+}
+
+
+//中断服务程序
+void Timer4_interrupt() interrupt 20           //中断入口
+{
+		Timer4_Count++;
+}
+
+
+void GetDistance(void){
+
+		   TRIG_IO = 1;
+        Delay10us();                                                //10微秒
+        TRIG_IO = 0;
+        Timer4_Count = 0;
+        while(ECHO_IO == 0 && Timer4_Count < 50);                  //500微秒超时
+        Timer4_Count = 0;
+        while(ECHO_IO == 1 && Timer4_Count < 2000);                //20毫秒超时
+        Num_Distance = (int)((float)Timer4_Count / 100 * 340 / 2); //计算距离：距离(毫米)=时间(ms)*速度(340mm/ms)/2
+				Num_Distance /= 10;
+}
 
 void Timer1_Init(void)		//5毫秒@11.0592MHz
 {

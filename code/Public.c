@@ -17,7 +17,7 @@
 
 unsigned int PWMHEIGHT = 0X40CC;
 unsigned int MOTORDUTY = 0X3B66;
-
+unsigned int Num_Distance = 0;
 
 ///校验数据准确性 做CRC校验
 
