@@ -250,7 +250,7 @@ void ResponseData(unsigned char *RES_DATA) {
 	在PWM为100%时，如果要切换电机方向，必须先刹车0.1S以上再给反转信号。*/
 
 											MOTORRUNING = 0;
-											DELAY_MS(150);
+											DELAY_MS(120);
 											MOTORRUNING = 1;
 											
 								}else if(RES_DATA[3] == 0x02){//前进
@@ -258,22 +258,22 @@ void ResponseData(unsigned char *RES_DATA) {
 											Motor_Actions_Status(1,0);
 													
 										if(RES_DATA[4] == 0x01){
-														MOTORDUTY = 0X4B66;
+														MOTORDUTY = 0X4366;
 										}else if(RES_DATA[4] == 0x02){
-														MOTORDUTY = 0X5B66;
+														MOTORDUTY = 0X5366;
 										}else if(0x03 <= RES_DATA[4] ){
-														MOTORDUTY = 0X6B66;
+														MOTORDUTY = 0X6366;
 										}
 										
 							}else if(RES_DATA[3] == 0x01){//后退
 									Motor_Actions_Status(0,1);
 													
 										if(RES_DATA[4] == 0x01){
-														MOTORDUTY = 0X4B66;
+														MOTORDUTY = 0X4366;
 										}else if(RES_DATA[4] == 0x02){
-														MOTORDUTY = 0X5B66;
+														MOTORDUTY = 0X5366;
 										}else if(0x03 <= RES_DATA[4] ){
-														MOTORDUTY = 0X6B66;
+														MOTORDUTY = 0X6366;
 										}
 								
 							}
