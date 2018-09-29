@@ -362,6 +362,26 @@
               <FileType>1</FileType>
               <FilePath>..\code\SmartCar.c</FilePath>
             </File>
+            <File>
+              <FileName>DeviceAction.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\code\DeviceAction.c</FilePath>
+            </File>
+            <File>
+              <FileName>Delay.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\code\Delay.c</FilePath>
+            </File>
+            <File>
+              <FileName>Timer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\code\Timer.c</FilePath>
+            </File>
+            <File>
+              <FileName>Public.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\code\Public.c</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>

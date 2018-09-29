@@ -13,6 +13,6 @@ void Buzzer_Actions_NumAndMS(unsigned char  number,unsigned char ms);
 
 void LedAndBuzzer_Actions_NumAndMS(unsigned char  number,unsigned char ms);
 
-
+unsigned char Motor_CurrentStatus(void);
 
 #endif

@@ -9,7 +9,7 @@
 #define uint32    unsigned int   
 
 extern unsigned int PWMHEIGHT;
-extern unsigned int MOTORDUTY;
+extern unsigned char Motor_Level;
 extern unsigned int Num_Distance;
 
 extern unsigned char CheckData(unsigned char *CHECK_DATA);

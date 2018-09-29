@@ -16,7 +16,7 @@
 */
 
 unsigned int PWMHEIGHT = 0X40CC;
-unsigned int MOTORDUTY = 0X3B66;
+unsigned char Motor_Level = 1;
 unsigned int Num_Distance = 0;
 
 ///校验数据准确性 做CRC校验
@@ -95,7 +95,7 @@ unsigned char dec_to_hex(unsigned char b)
 
 
 /******************************************
-*      十六进制转换为十进制                 
+*      十六进制转换为十进制        255         
 *******************************************/
 
 

@@ -10,6 +10,20 @@ sbit MOTORIN1 =  P1 ^ 5;          		// 控制电机方向
 sbit MOTORIN2 =  P1 ^ 6;          	  // 控制电机方向
 
 
+///电机当前运行状态  前进1 后退2  刹车0
+unsigned char Motor_CurrentStatus(void){
+	
+	if(MOTORIN1==1 && MOTORIN2==0){//前进
+		return 1;
+	}else if(MOTORIN1==0 && MOTORIN2==1){//后退
+		return 2;
+	}else if(MOTORIN1==0 && MOTORIN2==0){//刹车
+		return 0;
+	}
+	
+}
+
+
 ///控制电机转动 两个引脚
 
 void Motor_Actions_Status(unsigned char motor1, unsigned char motor2){

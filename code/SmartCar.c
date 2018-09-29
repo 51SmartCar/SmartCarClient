@@ -31,14 +31,16 @@
 /*注：在进行正反转切换的时候最好先刹车0.1S以上再反转，否则有可能损坏驱动器。在PWM为100%时，如果要切换电机方向，必须先刹车0.1S以上再给反转信号。*/
 
 bit	B_TX1_Busy;	//发送忙标志
+
 bit MOTORRUNING = 1;
+bit Engine_Status = 0;//引擎开关状态
+bit Auto_Driver = 0;//自动驾驶状体
 
 
 uint8 DATA_LENGTH = 7;
 uint8 CURRENT_LENGTH=0;
 
 uint8 DATA_GET[]=  { 0x7E, 0x00,     0,  0,      0,      0,       0x7E};
-	uint8 RESS[]=  { 0x7E, 0x07,     0,  0,      0,      0,       0x7E};
 
 
 void SendData(char *s);
@@ -47,6 +49,8 @@ void ResponseData(unsigned char *RES_DATA);
 void SendAckData(unsigned char *RES_DATA);
 void UART2_Init(void);
 void Device_Init(void);
+void VehicleDiagnosis(unsigned int distance, unsigned char level);
+void VehicleAutoDriver(void);
 
  //摄像头   白负  黑正
 
@@ -65,9 +69,46 @@ void main()
     WDT_CONTR |= 0x20;      //启动看门狗
 
     while(1) {
+			
 			WDT_CONTR |= 0x10;  //喂狗程序
+			
 			GetDistance();
+			
+			VehicleDiagnosis(Num_Distance, Motor_Level);
+			
+			VehicleAutoDriver();
+			
 		};
+}
+
+
+//小车自动驾驶
+void VehicleAutoDriver(void){
+	
+	if(!Auto_Driver){
+			return;
+	}
+	
+	
+	
+	
+	
+	
+
+}
+
+
+///紧急制动
+void VehicleDiagnosis(unsigned int distance, unsigned char level){
+	
+	if( 1 == Motor_CurrentStatus() ){
+
+			if( distance <= (20 + 5*(float)level) ){
+				Motor_Actions_Status(0,0);
+				Motor_Level = 1;
+			}
+	}
+	
 }
 
 
@@ -86,6 +127,7 @@ void Device_Init(void) {
 		P1M0 |=  (0x18);
 		
 		MOTORRUNING = 1;
+		Engine_Status = 0;
 		
     Buzzer_Actions_Status(0);
 	  Led_Actions_Status(0);
@@ -241,6 +283,7 @@ void ResponseData(unsigned char *RES_DATA) {
 					};
 					case 0x04:{//方向和油门
 						if( 0x00<=RES_DATA[3]<=0x02 && 0x00<=RES_DATA[4]<=0x03 && MOTORRUNING == 1){
+							
 							  SendAckData(RES_DATA);
 							
 								if(RES_DATA[3] == 0x00 || RES_DATA[4] == 0x00 ){//停止
@@ -258,22 +301,23 @@ void ResponseData(unsigned char *RES_DATA) {
 											Motor_Actions_Status(1,0);
 													
 										if(RES_DATA[4] == 0x01){
-														MOTORDUTY = 0X4366;
+														Motor_Level = 1;
 										}else if(RES_DATA[4] == 0x02){
-														MOTORDUTY = 0X5366;
+														Motor_Level = 2;
 										}else if(0x03 <= RES_DATA[4] ){
-														MOTORDUTY = 0X6366;
+														Motor_Level = 3;
 										}
 										
 							}else if(RES_DATA[3] == 0x01){//后退
-									Motor_Actions_Status(0,1);
+									  
+										Motor_Actions_Status(0,1);
 													
 										if(RES_DATA[4] == 0x01){
-														MOTORDUTY = 0X4366;
+														Motor_Level = 1;
 										}else if(RES_DATA[4] == 0x02){
-														MOTORDUTY = 0X5366;
+														Motor_Level = 2;
 										}else if(0x03 <= RES_DATA[4] ){
-														MOTORDUTY = 0X6366;
+														Motor_Level = 3;
 										}
 								
 							}
@@ -290,9 +334,11 @@ void ResponseData(unsigned char *RES_DATA) {
 					};
 					case 0x06:{//引擎   TODOLED显示工作状态
 						if( RES_DATA[4]==0x02){
+							Engine_Status = 1;
 							LedAndBuzzer_Actions_NumAndMS(2,100);
 							SendAckData(RES_DATA);
 						}else if( RES_DATA[4]==0x01){
+							Engine_Status = 0;
 							LedAndBuzzer_Actions_NumAndMS(2,100);
 							SendAckData(RES_DATA);
 						}
@@ -304,6 +350,17 @@ void ResponseData(unsigned char *RES_DATA) {
 							RES_DATA[3] = Num_Distance >>8; //高8位
 							SendAckData(RES_DATA);
 							Led_Actions_NumAndMS(1,10);
+						}
+						break;
+					};
+					case 0x08:{//智能行驶   
+						if( RES_DATA[4]==0x02){
+							Auto_Driver = 1;
+							SendAckData(RES_DATA);
+							Led_Actions_NumAndMS(1,10);
+						}else if( RES_DATA[4]==0x01){
+							Auto_Driver = 0;
+							SendAckData(RES_DATA);
 						}
 						break;
 					};

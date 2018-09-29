@@ -10,6 +10,8 @@ sbit MOTORPWM =  P1 ^ 4;           		// 控制电机PWM 转速
 //变量定义
 unsigned long Timer4_Count = 0;                                    //定时器0中断计数变量
 
+unsigned int MOTORDUTY = 0X4366;
+
 void InitMoter(void){
 
 		MOTORPWM = 0;
@@ -127,6 +129,7 @@ void GetDistance(void){
         while(ECHO_IO == 1 && Timer4_Count < 2000);                //20毫秒超时
         Num_Distance = (int)((float)Timer4_Count / 100 * 340 / 2); //计算距离：距离(毫米)=时间(ms)*速度(340mm/ms)/2
 				Num_Distance /= 10;
+				
 }
 
 void Timer1_Init(void)		//5毫秒@11.0592MHz
@@ -159,6 +162,28 @@ void Timer1_Update(uint32 us)
 void Timer1_interrupt (void) interrupt 3 using 1    //周期为10ms
 {
 		static unsigned char   ss = 1;
+		
+		//根据级别设置pwm
+
+		switch(Motor_Level)
+		{
+			case 1:
+				{
+					MOTORDUTY = 0X4366;
+				}  break;
+				case 2:
+				{
+					MOTORDUTY = 0X5366;
+				}  break;
+				case 3:
+				{
+					MOTORDUTY= 0X6366;
+
+				}  break;
+				
+				default:break;
+		}
+
 
 		switch(ss)
 		{
