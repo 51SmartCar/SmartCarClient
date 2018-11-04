@@ -125,6 +125,9 @@ void Device_Init(void) {
 		
 		P1M1 &= ~(0x18);	  //P1.4 P1.3 设置为推挽输出
 		P1M0 |=  (0x18);
+		P4M1 &= ~(0x20);
+		P4M0 |=  (0x20);
+		
 		
 		MOTORRUNING = 1;
 		Engine_Status = 0;
