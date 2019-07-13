@@ -60,7 +60,7 @@ void main()
     UART2_Init();
 		Timer0_Init();
 		Timer1_Init();
-		Timer4_Init();
+		//Timer4_Init();//定时器用于计算超声波
 	  WDT_CONTR = 0x06;       //看门狗定时器溢出时间计算公式: (12 * 32768 * PS) / FOSC (秒)
                             //设置看门狗定时器分频数为32,溢出时间如下:
                             //11.0592M : 1.14s
@@ -72,11 +72,11 @@ void main()
 			
 			WDT_CONTR |= 0x10;  //喂狗程序
 			
-			GetDistance();
-			
-			VehicleDiagnosis(Num_Distance, Motor_Level);
-			
-			VehicleAutoDriver();
+//			GetDistance();//用于计算超声波
+//			
+//			VehicleDiagnosis(Num_Distance, Motor_Level);
+//			
+//			VehicleAutoDriver();
 			
 		};
 }
